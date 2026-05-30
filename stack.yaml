@@ -1,0 +1,10 @@
+resolver: lts-24.43
+
+packages:
+- .
+
+extra-deps:
+- direct-sqlite-2.3.29
+
+nix:
+  enable: false

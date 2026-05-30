@@ -1,0 +1,44 @@
+cabal-version: 2.2
+name: orville-sqlite
+version: 0.1.0.0
+synopsis: A type-safe SQLite API modeled after Flipstone Orville
+description:
+  Maps Haskell data types to SQLite tables with compile-time schema guarantees.
+  Provides type-safe column mapping, automatic schema migration, and basic CRUD
+  query execution.
+category: database, sqlite
+author: ""
+maintainer: ""
+license: MIT
+license-file: LICENSE
+build-type: Simple
+
+library
+  exposed-modules:
+      Orville.SQLite
+      Orville.SQLite.AutoMigration
+      Orville.SQLite.Execution
+      Orville.SQLite.FieldDefinition
+      Orville.SQLite.Monad
+      Orville.SQLite.RawSql
+      Orville.SQLite.SqlMarshaller
+      Orville.SQLite.SqlType
+      Orville.SQLite.TableDefinition
+  hs-source-dirs: src
+  build-depends:
+      base >=4.17 && <5
+    , direct-sqlite
+    , text
+    , bytestring
+  default-language: Haskell2010
+  ghc-options: -Wall
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs: test
+  build-depends:
+      base >=4.17 && <5
+    , orville-sqlite
+    , hspec
+  default-language: Haskell2010
