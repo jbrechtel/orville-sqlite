@@ -1,0 +1,41 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libsqlite3-dev
+
+      - name: Install Stack
+        run: |
+          curl -sSL https://get.haskellstack.org/ | sh
+
+      - name: Cache Stack artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            .stack-work
+          key: stack-${{ runner.os }}-${{ hashFiles('stack.yaml', 'orville-sqlite.cabal') }}
+          restore-keys: |
+            stack-${{ runner.os }}-
+
+      - name: Build
+        run: stack build --pedantic
+
+      - name: Test
+        run: stack test
