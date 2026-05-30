@@ -19,7 +19,9 @@ library
       Orville.SQLite.AutoMigration
       Orville.SQLite.Execution
       Orville.SQLite.FieldDefinition
+      Orville.SQLite.Internal
       Orville.SQLite.Monad
+      Orville.SQLite.Raw
       Orville.SQLite.RawSql
       Orville.SQLite.SqlMarshaller
       Orville.SQLite.SqlType
@@ -42,6 +44,7 @@ test-suite spec
       Test.AutoMigration
       Test.EntityOperations
       Test.FieldDefinition
+      Test.Raw
       Test.SqlMarshaller
   hs-source-dirs: test
   build-depends:

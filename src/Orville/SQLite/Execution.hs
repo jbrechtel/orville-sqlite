@@ -15,8 +15,8 @@ import Control.Monad.Reader (ask)
 import Data.List (intercalate)
 import qualified Data.Text as T
 import qualified Database.SQLite3 as SQLite3
-import Database.SQLite3.Direct (columnCount)
 import Orville.SQLite.FieldDefinition (fieldColumnName, fieldToSqlValue)
+import Orville.SQLite.Internal (getRowData)
 import Orville.SQLite.Monad (OrvilleM)
 import Orville.SQLite.SqlMarshaller (
     marshallerDecodeRow,
@@ -148,22 +148,4 @@ deleteEntity tableDef key = do
         _ <- SQLite3.step stmt
         SQLite3.finalize stmt
 
-getRowData ::
-    SQLite3.Statement ->
-    [String] ->
-    IO [(String, SQLite3.SQLData)]
-getRowData stmt cols = do
-    colCount <- columnCount stmt
-    let count :: Int = fromIntegral colCount
-        indexes = take count [0 :: SQLite3.ColumnIndex ..]
-    mapM
-        ( \i -> do
-            let idx :: Int = fromIntegral i
-                colName =
-                    if idx < length cols
-                        then cols !! idx
-                        else ""
-            sqlVal <- SQLite3.column stmt i
-            pure (colName, sqlVal)
-        )
-        indexes
+

@@ -23,7 +23,7 @@ autoMigrationTests = do
                 pure ()
             closeConnection db
 
-        it "is idempotent — running twice does not error" $ do
+        it "is idempotent -- running twice does not error" $ do
             db <- openConnection ":memory:"
             withConnection db $ do
                 autoMigrateSchema defaultOptions [schemaTable personTable []]
