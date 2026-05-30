@@ -37,9 +37,17 @@ library
 test-suite spec
   type: exitcode-stdio-1.0
   main-is: Main.hs
+  other-modules:
+      Test.Setup
+      Test.AutoMigration
+      Test.EntityOperations
+      Test.FieldDefinition
+      Test.SqlMarshaller
   hs-source-dirs: test
   build-depends:
       base >=4.17 && <5
+    , bytestring
+    , direct-sqlite
     , mtl
     , orville-sqlite
     , hspec
