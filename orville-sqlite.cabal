@@ -18,6 +18,7 @@ library
       Orville.SQLite.FieldDefinition
       Orville.SQLite.Monad
       Orville.SQLite.RawSql
+      Orville.SQLite.SqlMarshaller
       Orville.SQLite.SqlType
   hs-source-dirs: src
   build-depends:
