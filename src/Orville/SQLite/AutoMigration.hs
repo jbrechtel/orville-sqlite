@@ -18,7 +18,7 @@ module Orville.SQLite.AutoMigration
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ask)
-import Data.List (find, intercalate)
+import Data.List (intercalate)
 import qualified Data.Text as T
 import qualified Database.SQLite3 as SQLite3
 import Orville.SQLite.FieldDefinition (fieldColumnName)
@@ -87,7 +87,7 @@ planItem :: SchemaItem -> OrvilleM [MigrationStep]
 planItem (SchemaItem (SchemaTableItem tableName' marshaller pkName dropColsList)) = do
   existingCols <- getExistingColumns tableName'
   let expectedCols = marshallerExpectedColumns marshaller pkName
-  pure $ planTableChanges tableName' expectedCols existingCols dropColsList
+  pure $ planTableChanges tableName' expectedCols existingCols pkName dropColsList
 
 getExistingColumns :: String -> OrvilleM [ExistingColumn]
 getExistingColumns tableName' = do
@@ -140,10 +140,11 @@ planTableChanges ::
   String ->
   [(String, String, Bool)] ->
   [ExistingColumn] ->
+  String ->
   [String] ->
   [MigrationStep]
-planTableChanges tableName' expected existing dropColsList
-  | null existing = [CreateTable tableName' expected (findPk expected)]
+planTableChanges tableName' expected existing pkName dropColsList
+  | null existing = [CreateTable tableName' expected pkName]
   | otherwise = addColSteps ++ dropColSteps
   where
     existingNames = map existingName existing
@@ -160,13 +161,6 @@ planTableChanges tableName' expected existing dropColsList
       , name `elem` existingNames
       ]
 
-    findPk cols =
-      case find (\(_, _, isNull) -> not isNull) cols of
-        Just (name, _, _) -> name
-        Nothing -> case cols of
-          ((name, _, _) : _) -> name
-          [] -> ""
-
 autoMigrateSchema :: MigrationOptions -> [SchemaItem] -> OrvilleM ()
 autoMigrateSchema opts items = do
   plan <- generateMigrationPlan items
@@ -179,10 +173,10 @@ executeMigrationPlan = mapM_ executeStep
     executeStep step = do
       db <- ask
       case step of
-        CreateTable name cols _pkName ->
+        CreateTable name cols pkName ->
           liftIO $
             SQLite3.exec db $
-              mkCreateTable name cols
+              mkCreateTable name cols pkName
         AddColumn name colName colType ->
           liftIO $
             SQLite3.exec db $
@@ -202,8 +196,8 @@ executeMigrationPlan = mapM_ executeStep
                   <> " DROP COLUMN "
                   <> colName
 
-mkCreateTable :: String -> [(String, String, Bool)] -> T.Text
-mkCreateTable name cols =
+mkCreateTable :: String -> [(String, String, Bool)] -> String -> T.Text
+mkCreateTable name cols pkName =
   T.pack $
     "CREATE TABLE IF NOT EXISTS "
       <> name
@@ -211,8 +205,10 @@ mkCreateTable name cols =
       <> intercalate ",\n  " (map mkColumnDef cols)
       <> "\n)"
   where
-    mkColumnDef (colName, colType, notNullFlag) =
-      colName
-        <> " "
-        <> colType
-        <> if notNullFlag then " NOT NULL" else ""
+    mkColumnDef (colName, colType, notNullFlag)
+      | colName == pkName =
+          colName <> " " <> colType <> " PRIMARY KEY"
+      | notNullFlag =
+          colName <> " " <> colType <> " NOT NULL"
+      | otherwise =
+          colName <> " " <> colType
