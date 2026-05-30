@@ -1,0 +1,6 @@
+[submodule "orville"]
+	path = orville
+	url = https://github.com/flipstone/orville.git
+[submodule "flipstone-orville"]
+	path = flipstone-orville
+	url = https://github.com/flipstone/orville.git
