@@ -1,22 +1,22 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Orville.SQLite.RawSql
-  ( RawSql (..)
-  , fromString
-  , toRawSql
-  , intercalate
-  , fromText
-  , space
-  , comma
-  , leftParen
-  , rightParen
-  , equals
-  ) where
+module Orville.SQLite.RawSql (
+    RawSql (..),
+    fromString,
+    toRawSql,
+    intercalate,
+    fromText,
+    space,
+    comma,
+    leftParen,
+    rightParen,
+    equals,
+) where
 
 import qualified Data.Text as T
 
 newtype RawSql = RawSql {unRawSql :: String}
-  deriving (Show, Eq, Semigroup, Monoid)
+    deriving (Show, Eq, Semigroup, Monoid)
 
 fromString :: String -> RawSql
 fromString = RawSql

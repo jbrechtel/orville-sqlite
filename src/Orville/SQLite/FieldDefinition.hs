@@ -3,75 +3,77 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Orville.SQLite.FieldDefinition
-  ( Nullability (..)
-  , FieldDefinition (..)
-  , integerField
-  , textField
-  , realField
-  , blobField
-  , nullableField
-  , convertField
-  , fieldToSqlValue
-  , fieldFromSqlValue
-  , fieldColumnName
-  , fieldSqlTypeName
-  , fieldIsNullable
-  ) where
+module Orville.SQLite.FieldDefinition (
+    Nullability (..),
+    FieldDefinition (..),
+    integerField,
+    textField,
+    realField,
+    blobField,
+    nullableField,
+    convertField,
+    fieldToSqlValue,
+    fieldFromSqlValue,
+    fieldColumnName,
+    fieldSqlTypeName,
+    fieldIsNullable,
+) where
 
-import Data.Kind (Type)
 import qualified Data.ByteString as BS
 import Data.Int (Int64)
+import Data.Kind (Type)
 import qualified Data.Text as T
 import qualified Database.SQLite3 as SQLite3
-import Orville.SQLite.SqlType
-  ( SqlType
-  , convertSqlType
-  , integerType
-  , realType
-  , blobType
-  , sqlTypeFromSql
-  , sqlTypeName
-  , sqlTypeToSql
-  , textType
-  )
+import Orville.SQLite.SqlType (
+    SqlType,
+    blobType,
+    convertSqlType,
+    integerType,
+    realType,
+    sqlTypeFromSql,
+    sqlTypeName,
+    sqlTypeToSql,
+    textType,
+ )
 
 data Nullability = NotNull | Nullable
 
 data FieldDefinition (nullability :: Nullability) :: Type -> Type where
-  NotNullField ::
-    { notNullFieldName :: String
-    , notNullFieldSqlType :: SqlType a
-    } -> FieldDefinition 'NotNull a
-  NullableField ::
-    { nullableFieldName :: String
-    , nullableFieldSqlType :: SqlType a
-    } -> FieldDefinition 'Nullable a
+    NotNullField ::
+        { notNullFieldName :: String
+        , notNullFieldSqlType :: SqlType a
+        } ->
+        FieldDefinition 'NotNull a
+    NullableField ::
+        { nullableFieldName :: String
+        , nullableFieldSqlType :: SqlType a
+        } ->
+        FieldDefinition 'Nullable a
 
 fieldColumnName :: FieldDefinition null a -> String
 fieldColumnName = \case
-  NotNullField n _ -> n
-  NullableField n _ -> n
+    NotNullField n _ -> n
+    NullableField n _ -> n
 
 fieldSqlTypeName :: FieldDefinition null a -> String
 fieldSqlTypeName = \case
-  NotNullField _ st -> sqlTypeName st
-  NullableField _ st -> sqlTypeName st
+    NotNullField _ st -> sqlTypeName st
+    NullableField _ st -> sqlTypeName st
 
 fieldIsNullable :: FieldDefinition null a -> Bool
 fieldIsNullable = \case
-  NotNullField _ _ -> False
-  NullableField _ _ -> True
+    NotNullField _ _ -> False
+    NullableField _ _ -> True
 
 fieldToSqlValue :: a -> FieldDefinition null a -> SQLite3.SQLData
 fieldToSqlValue val = \case
-  NotNullField _ st -> sqlTypeToSql st val
-  NullableField _ st -> sqlTypeToSql st val
+    NotNullField _ st -> sqlTypeToSql st val
+    NullableField _ st -> sqlTypeToSql st val
 
 fieldFromSqlValue :: SQLite3.SQLData -> FieldDefinition null a -> Either String a
 fieldFromSqlValue sqlVal = \case
-  NotNullField _ st -> sqlTypeFromSql st sqlVal
-  NullableField _ st -> sqlTypeFromSql st sqlVal
+    NotNullField _ st -> sqlTypeFromSql st sqlVal
+    NullableField _ st -> sqlTypeFromSql st sqlVal
 
 integerField :: String -> FieldDefinition 'NotNull Int64
 integerField name = NotNullField name integerType
@@ -87,13 +89,13 @@ blobField name = NotNullField name blobType
 
 nullableField :: FieldDefinition 'NotNull a -> FieldDefinition 'Nullable a
 nullableField = \case
-  NotNullField n st -> NullableField n st
+    NotNullField n st -> NullableField n st
 
 convertField ::
-  (a -> b) ->
-  (b -> a) ->
-  FieldDefinition null a ->
-  FieldDefinition null b
+    (a -> b) ->
+    (b -> a) ->
+    FieldDefinition null a ->
+    FieldDefinition null b
 convertField to from = \case
-  NotNullField n st -> NotNullField n (convertSqlType to from st)
-  NullableField n st -> NullableField n (convertSqlType to from st)
+    NotNullField n st -> NotNullField n (convertSqlType to from st)
+    NullableField n st -> NullableField n (convertSqlType to from st)
