@@ -15,8 +15,10 @@ build-type: Simple
 
 library
   exposed-modules:
+      Orville.SQLite.FieldDefinition
       Orville.SQLite.Monad
       Orville.SQLite.RawSql
+      Orville.SQLite.SqlType
   hs-source-dirs: src
   build-depends:
       base >=4.17 && <5
