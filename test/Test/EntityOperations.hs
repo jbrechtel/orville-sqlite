@@ -4,8 +4,6 @@
 module Test.EntityOperations where
 
 import Control.Monad.IO.Class (liftIO)
-import Data.Int (Int64)
-import Data.Text (Text)
 import Test.Hspec
 
 import Orville.SQLite

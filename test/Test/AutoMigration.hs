@@ -7,7 +7,6 @@ module Test.AutoMigration where
 
 import Control.Exception (SomeException, try)
 import Control.Monad.IO.Class (liftIO)
-import Data.Int (Int64)
 import Test.Hspec
 
 import Orville.SQLite

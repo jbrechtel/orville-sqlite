@@ -5,7 +5,6 @@ module Orville.SQLite.Internal (
 ) where
 
 import Control.Monad (forM)
-import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import qualified Database.SQLite3 as SQLite3
 import Database.SQLite3.Direct (columnCount)

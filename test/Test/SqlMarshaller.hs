@@ -4,7 +4,6 @@
 
 module Test.SqlMarshaller where
 
-import Data.Int (Int64)
 import qualified Data.Text as T
 import Test.Hspec
 
