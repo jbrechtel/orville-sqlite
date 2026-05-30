@@ -15,19 +15,13 @@ build-type: Simple
 
 library
   exposed-modules:
-      Orville.SQLite
-      Orville.SQLite.AutoMigration
-      Orville.SQLite.Execution
-      Orville.SQLite.FieldDefinition
       Orville.SQLite.Monad
       Orville.SQLite.RawSql
-      Orville.SQLite.SqlMarshaller
-      Orville.SQLite.SqlType
-      Orville.SQLite.TableDefinition
   hs-source-dirs: src
   build-depends:
       base >=4.17 && <5
     , direct-sqlite
+    , mtl
     , text
     , bytestring
   default-language: Haskell2010
