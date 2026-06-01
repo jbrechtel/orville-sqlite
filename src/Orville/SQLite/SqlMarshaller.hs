@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Orville.SQLite.SqlMarshaller (
@@ -13,6 +14,10 @@ module Orville.SQLite.SqlMarshaller (
     marshallerDerivedColumns,
     marshallerEncodeWrite,
     marshallerDecodeRow,
+    MarshallerField (..),
+    ReadOnlyColumnOption (..),
+    collectFromField,
+    foldMarshallerFields,
 ) where
 
 import qualified Database.SQLite3 as SQLite3
@@ -71,6 +76,64 @@ marshallReadOnlyField ::
     SqlMarshaller writeEntity a
 marshallReadOnlyField fieldDef =
     MarshallReadOnly (MarshallField fieldDef)
+
+-- | Represents a primitive field entry in a 'SqlMarshaller'. Used with
+-- 'foldMarshallerFields' to iterate over the fields in a marshaller.
+data MarshallerField writeEntity where
+    MarshallerNatural ::
+        FieldDefinition nullability a ->
+        Maybe (writeEntity -> a) ->
+        MarshallerField writeEntity
+
+{- | Specifies whether read-only fields should be included when using functions
+such as 'collectFromField'.
+-}
+data ReadOnlyColumnOption
+    = IncludeReadOnlyColumns
+    | ExcludeReadOnlyColumns
+
+{- | A fold function that can be used with 'foldMarshallerFields' to collect
+a value calculated from a 'FieldDefinition' via the given function. The
+calculated value is added to the list of values being built.
+
+Ignores 'MarshallReadOnly' / 'MarshallPure' entries.
+-}
+collectFromField ::
+    ReadOnlyColumnOption ->
+    (forall n a. FieldDefinition n a -> result) ->
+    MarshallerField writeEntity ->
+    [result] ->
+    [result]
+collectFromField readOnlyOption fromField entry results =
+    case entry of
+        MarshallerNatural fieldDef (Just _) ->
+            fromField fieldDef : results
+        MarshallerNatural fieldDef Nothing ->
+            case readOnlyOption of
+                IncludeReadOnlyColumns -> fromField fieldDef : results
+                ExcludeReadOnlyColumns -> results
+
+{- | Fold over all the 'FieldDefinition's contained within a 'SqlMarshaller'.
+This can be used to collect column names, encode to SQL values, etc.
+-}
+foldMarshallerFields ::
+    forall writeEntity readEntity acc.
+    SqlMarshaller writeEntity readEntity ->
+    acc ->
+    (forall w. MarshallerField w -> acc -> acc) ->
+    acc
+foldMarshallerFields marshaller acc0 f =
+    go marshaller acc0
+  where
+    go :: SqlMarshaller w r -> acc -> acc
+    go (MarshallPure _) acc = acc
+    go (MarshallApply m1 m2) acc = go m1 (go m2 acc)
+    go (MarshallNest _ m) acc = go m acc
+    go (MarshallField fieldDef) acc =
+        f (MarshallerNatural fieldDef (Just id)) acc
+    go (MarshallMaybe fieldDef) acc =
+        f (MarshallerNatural fieldDef (Just id)) acc
+    go (MarshallReadOnly m) acc = go m acc
 
 marshallMaybe ::
     (writeEntity -> Maybe a) ->
