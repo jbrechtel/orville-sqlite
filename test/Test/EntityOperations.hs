@@ -1,9 +1,12 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.EntityOperations where
 
+import Control.Exception (try)
 import Control.Monad.IO.Class (liftIO)
+import qualified Data.Text as T
 import Test.Hspec
 
 import Orville.SQLite
@@ -128,3 +131,216 @@ entityOperationsTests = do
                 deleteEntity personTable 999
                 findAll personTable
             liftIO $ length results `shouldBe` 1
+
+    describe "upsertEntity" $ do
+        it "inserts a new row when no conflict exists" $ do
+            results <- withFreshDb widgetTable $ do
+                upsertEntity widgetTable ByPrimaryKey (Widget 1 "NewWidget")
+                findAll widgetTable
+            liftIO $ length results `shouldBe` 1
+            liftIO $ case results of
+                (r : _) -> widgetLabel r `shouldBe` "NewWidget"
+                [] -> error "expected one result"
+
+        it "upserts by a unique field via ByField" $ do
+            let createTable =
+                    T.unwords
+                        [ "CREATE TABLE IF NOT EXISTS person_unique_email ("
+                        , "id INTEGER PRIMARY KEY,"
+                        , "name TEXT NOT NULL,"
+                        , "email TEXT NOT NULL UNIQUE"
+                        , ")"
+                        ]
+            results <-
+                withFreshDbExtras [createTable] pueTable $ do
+                    insertEntity pueTable (PersonUniqueEmail 1 "Alice" "alice@example.com")
+                    upsertEntity
+                        pueTable
+                        (ByField pueEmailField)
+                        (PersonUniqueEmail 1 "Alice Updated" "alice@example.com")
+                    findAll pueTable
+            liftIO $ length results `shouldBe` 1
+            liftIO $ case results of
+                (r : _) -> pueName r `shouldBe` "Alice Updated"
+                [] -> error "expected one result"
+
+        it "updates an existing row on conflict by primary key" $ do
+            let createTable =
+                    T.unwords
+                        [ "CREATE TABLE IF NOT EXISTS widget ("
+                        , "widget_id INTEGER PRIMARY KEY,"
+                        , "label TEXT NOT NULL"
+                        , ")"
+                        ]
+            results <-
+                withFreshDbExtras [createTable] widgetTable $ do
+                    insertEntity widgetTable (Widget 10 "OldLabel")
+                    upsertEntity widgetTable ByPrimaryKey (Widget 10 "NewLabel")
+                    findAll widgetTable
+            liftIO $ length results `shouldBe` 1
+            liftIO $ case results of
+                (r : _) -> widgetLabel r `shouldBe` "NewLabel"
+                [] -> error "expected one result"
+
+    describe "upsertAndReturnEntity" $ do
+        it "inserts a new row and returns the entity" $ do
+            let createTable =
+                    T.unwords
+                        [ "CREATE TABLE IF NOT EXISTS widget ("
+                        , "widget_id INTEGER PRIMARY KEY,"
+                        , "label TEXT NOT NULL"
+                        , ")"
+                        ]
+            result <-
+                withFreshDbExtras [createTable] widgetTable $ do
+                    upsertAndReturnEntity widgetTable ByPrimaryKey (Widget 42 "NewWidget")
+            liftIO $ result `shouldBe` Widget 42 "NewWidget"
+
+        it "updates an existing row and returns the updated entity" $ do
+            let createTable =
+                    T.unwords
+                        [ "CREATE TABLE IF NOT EXISTS widget ("
+                        , "widget_id INTEGER PRIMARY KEY,"
+                        , "label TEXT NOT NULL"
+                        , ")"
+                        ]
+            result <-
+                withFreshDbExtras [createTable] widgetTable $ do
+                    insertEntity widgetTable (Widget 10 "OldLabel")
+                    upsertAndReturnEntity widgetTable ByPrimaryKey (Widget 10 "NewLabel")
+            liftIO $ result `shouldBe` Widget 10 "NewLabel"
+
+    describe "insertOnConflictDoNothing" $ do
+        it "skips insert on conflict by primary key" $ do
+            let createTable =
+                    T.unwords
+                        [ "CREATE TABLE IF NOT EXISTS widget ("
+                        , "widget_id INTEGER PRIMARY KEY,"
+                        , "label TEXT NOT NULL"
+                        , ")"
+                        ]
+            results <-
+                withFreshDbExtras [createTable] widgetTable $ do
+                    insertEntity widgetTable (Widget 10 "Existing")
+                    insertOnConflictDoNothing widgetTable ByPrimaryKey (Widget 10 "ShouldNotInsert")
+                    findAll widgetTable
+            liftIO $ length results `shouldBe` 1
+            liftIO $ case results of
+                (r : _) -> widgetLabel r `shouldBe` "Existing"
+                [] -> error "expected one result"
+
+        it "inserts when no conflict exists" $ do
+            let createTable =
+                    T.unwords
+                        [ "CREATE TABLE IF NOT EXISTS widget ("
+                        , "widget_id INTEGER PRIMARY KEY,"
+                        , "label TEXT NOT NULL"
+                        , ")"
+                        ]
+            results <-
+                withFreshDbExtras [createTable] widgetTable $ do
+                    insertOnConflictDoNothing widgetTable ByPrimaryKey (Widget 10 "New")
+                    findAll widgetTable
+            liftIO $ length results `shouldBe` 1
+
+        it "skips insert on conflict by a unique field" $ do
+            let createTable =
+                    T.unwords
+                        [ "CREATE TABLE IF NOT EXISTS person_unique_email ("
+                        , "id INTEGER PRIMARY KEY,"
+                        , "name TEXT NOT NULL,"
+                        , "email TEXT NOT NULL UNIQUE"
+                        , ")"
+                        ]
+            results <-
+                withFreshDbExtras [createTable] pueTable $ do
+                    insertEntity pueTable (PersonUniqueEmail 1 "Alice" "alice@example.com")
+                    insertOnConflictDoNothing
+                        pueTable
+                        (ByField pueEmailField)
+                        (PersonUniqueEmail 2 "Bob" "alice@example.com")
+                    findAll pueTable
+            liftIO $ length results `shouldBe` 1
+            liftIO $ case results of
+                (r : _) -> pueName r `shouldBe` "Alice"
+                [] -> error "expected one result"
+
+    describe "insertOnConflictDoNothingUntargeted" $ do
+        it "skips insert on any conflict without specifying a target" $ do
+            let createTable =
+                    T.unwords
+                        [ "CREATE TABLE IF NOT EXISTS widget ("
+                        , "widget_id INTEGER PRIMARY KEY,"
+                        , "label TEXT NOT NULL"
+                        , ")"
+                        ]
+            results <-
+                withFreshDbExtras [createTable] widgetTable $ do
+                    insertEntity widgetTable (Widget 10 "Existing")
+                    insertOnConflictDoNothingUntargeted widgetTable (Widget 10 "ShouldNotInsert")
+                    findAll widgetTable
+            liftIO $ length results `shouldBe` 1
+            liftIO $ case results of
+                (r : _) -> widgetLabel r `shouldBe` "Existing"
+                [] -> error "expected one result"
+
+        it "inserts when no conflict exists" $ do
+            let createTable =
+                    T.unwords
+                        [ "CREATE TABLE IF NOT EXISTS widget ("
+                        , "widget_id INTEGER PRIMARY KEY,"
+                        , "label TEXT NOT NULL"
+                        , ")"
+                        ]
+            results <-
+                withFreshDbExtras [createTable] widgetTable $ do
+                    insertOnConflictDoNothingUntargeted widgetTable (Widget 1 "New")
+                    findAll widgetTable
+            liftIO $ length results `shouldBe` 1
+
+    describe "ConflictTarget resolution" $ do
+        it "ByMarshaller works with multi-column unique constraint" $ do
+            let createTable =
+                    T.unwords
+                        [ "CREATE TABLE IF NOT EXISTS widget ("
+                        , "widget_id INTEGER,"
+                        , "label TEXT NOT NULL,"
+                        , "UNIQUE(widget_id, label)"
+                        , ")"
+                        ]
+            results <-
+                withFreshDbExtras [createTable] widgetTable $ do
+                    insertEntity widgetTable (Widget 10 "OldLabel")
+                    upsertEntity
+                        widgetTable
+                        (ByMarshaller widgetMarshaller)
+                        (Widget 10 "OldLabel")
+                    findAll widgetTable
+            liftIO $ length results `shouldBe` 1
+
+        it "ByConflictTargetExpr works with a custom expression" $ do
+            let createTable =
+                    T.unwords
+                        [ "CREATE TABLE IF NOT EXISTS widget ("
+                        , "widget_id INTEGER PRIMARY KEY,"
+                        , "label TEXT NOT NULL"
+                        , ")"
+                        ]
+            results <-
+                withFreshDbExtras [createTable] widgetTable $ do
+                    insertEntity widgetTable (Widget 10 "OldLabel")
+                    let target = conflictTargetForColumnNames ["widget_id"]
+                    upsertEntity widgetTable (ByConflictTargetExpr target) (Widget 10 "NewLabel")
+                    findAll widgetTable
+            liftIO $ length results `shouldBe` 1
+            liftIO $ case results of
+                (r : _) -> widgetLabel r `shouldBe` "NewLabel"
+                [] -> error "expected one result"
+
+        it "NoPrimaryKey error for keyless table" $ do
+            let keylessDef = mkTableDefinitionWithoutKey "keyless" personMarshaller
+            result <-
+                try $
+                    withFreshDb keylessDef $
+                        upsertEntity keylessDef ByPrimaryKey (Person 0 "Alice" "Smith" 30)
+            liftIO $ result `shouldBe` (Left NoPrimaryKey :: Either ConflictTargetError ())
