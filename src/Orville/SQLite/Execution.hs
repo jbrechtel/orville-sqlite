@@ -196,7 +196,7 @@ data ConflictTarget where
 data ConflictTargetError
     = EmptyConflictTarget
     | NoPrimaryKey
-    deriving (Show)
+    deriving (Show, Eq)
 
 instance Exception ConflictTargetError
 
@@ -209,9 +209,13 @@ conflictTargetToConflictTargetExpr ::
 conflictTargetToConflictTargetExpr tableDef conflictTarget =
     case conflictTarget of
         ByPrimaryKey ->
-            let PrimaryKey _ pkFieldDef = tablePrimaryKey tableDef
-             in Right $
-                    conflictTargetForColumnNames [fieldColumnName pkFieldDef]
+            if tableHasRealPrimaryKey tableDef
+                then
+                    let PrimaryKey _ pkFieldDef = tablePrimaryKey tableDef
+                     in Right $
+                            conflictTargetForColumnNames
+                                [fieldColumnName pkFieldDef]
+                else Left NoPrimaryKey
         ByField fieldDef ->
             Right $
                 conflictTargetForColumnNames [fieldColumnName fieldDef]

@@ -1,8 +1,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Orville.SQLite.Expr.OnConflict
-    ( OnConflictExpr
-    , ConflictTargetExpr
+    ( OnConflictExpr (..)
+    , ConflictTargetExpr (..)
     , conflictTargetForColumnNames
     , onConflictDoUpdate
     , onConflictDoNothing
