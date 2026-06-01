@@ -34,6 +34,7 @@ data TableDefinition key writeEntity readEntity = TableDefinition
     { tableName :: String
     , tablePrimaryKey :: PrimaryKey writeEntity key
     , tableMarshaller :: SqlMarshaller writeEntity readEntity
+    , tableHasRealPrimaryKey :: Bool
     }
 
 mkTableDefinition ::
@@ -41,7 +42,13 @@ mkTableDefinition ::
     PrimaryKey writeEntity key ->
     SqlMarshaller writeEntity readEntity ->
     TableDefinition key writeEntity readEntity
-mkTableDefinition = TableDefinition
+mkTableDefinition name pk marshaller =
+    TableDefinition
+        { tableName = name
+        , tablePrimaryKey = pk
+        , tableMarshaller = marshaller
+        , tableHasRealPrimaryKey = True
+        }
 
 mkTableDefinitionWithoutKey ::
     String ->
@@ -58,4 +65,5 @@ mkTableDefinitionWithoutKey name marshaller =
             { tableName = name
             , tablePrimaryKey = PrimaryKey (const ()) dummyField
             , tableMarshaller = marshaller
+            , tableHasRealPrimaryKey = False
             }
