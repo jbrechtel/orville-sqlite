@@ -18,6 +18,7 @@ library
       Orville.SQLite
       Orville.SQLite.AutoMigration
       Orville.SQLite.Execution
+      Orville.SQLite.Expr.OnConflict
       Orville.SQLite.FieldDefinition
       Orville.SQLite.Internal
       Orville.SQLite.Monad
