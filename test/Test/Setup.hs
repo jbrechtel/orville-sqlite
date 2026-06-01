@@ -1,9 +1,11 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Test.Setup where
 
 import Data.Int (Int64)
 import Data.Text (Text)
+import qualified Data.Text as T
 
 import Orville.SQLite
 
@@ -104,3 +106,52 @@ withFreshDb tableDef action = do
         action
     closeConnection db
     pure result
+
+{- | Run an OrvilleM action against a fresh in-memory database, creating the
+table with custom SQL (to support UNIQUE constraints etc.) before running the
+standard auto-migration. The custom SQL is run first, so any tables it creates
+will be skipped by auto-migration's 'CreateTable' step.
+-}
+withFreshDbExtras ::
+    [T.Text] ->
+    TableDefinition key w r ->
+    OrvilleM a ->
+    IO a
+withFreshDbExtras extras tableDef action = do
+    db <- openConnection ":memory:"
+    result <- withConnection db $ do
+        mapM_ execute extras
+        autoMigrateSchema defaultOptions [schemaTable tableDef []]
+        action
+    closeConnection db
+    pure result
+
+-- | An entity with a UNIQUE constraint on email (used for ByField testing).
+-- The table must be created manually with a UNIQUE constraint since the
+-- auto-migration doesn't support them yet.
+data PersonUniqueEmail = PersonUniqueEmail
+    { pueId :: Int64
+    , pueName :: Text
+    , pueEmail :: Text
+    }
+    deriving (Show, Eq)
+
+pueIdField :: FieldDefinition 'NotNull Int64
+pueIdField = integerField "id"
+
+pueNameField :: FieldDefinition 'NotNull Text
+pueNameField = textField "name"
+
+pueEmailField :: FieldDefinition 'NotNull Text
+pueEmailField = textField "email"
+
+pueMarshaller :: SqlMarshaller PersonUniqueEmail PersonUniqueEmail
+pueMarshaller =
+    PersonUniqueEmail
+        <$> marshallReadOnlyField pueIdField
+        <*> marshallField pueName pueNameField
+        <*> marshallField pueEmail pueEmailField
+
+pueTable :: TableDefinition Int64 PersonUniqueEmail PersonUniqueEmail
+pueTable =
+    mkTableDefinition "person_unique_email" (primaryKey pueId pueIdField) pueMarshaller
